@@ -76,3 +76,21 @@ def test_nested_replacements():
     }
 
     assert condense_json(input_json, replacements) == expected_output
+
+
+def test_blank_or_none_replacements():
+    input_json = {
+        "outer": {"inner": {"deep": "something deep inside with foxes in it"}}
+    }
+
+    replacements = {"1": "deep", "2": None, "3": ""}
+
+    expected_output = {
+        "outer": {
+            "inner": {
+                "deep": {"$r": ["something ", {"$": "1"}, " inside with foxes in it"]}
+            }
+        }
+    }
+
+    assert condense_json(input_json, replacements) == expected_output

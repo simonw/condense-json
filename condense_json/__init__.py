@@ -42,6 +42,9 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     if not replacements:
         return obj
 
+    # Filter out any blank replacements
+    replacements = {rep_id: substr for rep_id, substr in replacements.items() if substr}
+
     substr_to_id = {substr: rep_id for rep_id, substr in replacements.items()}
     pattern = re.compile("|".join(map(re.escape, replacements.values())))
 
