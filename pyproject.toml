@@ -1,6 +1,6 @@
 [project]
 name = "condense-json"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python function for condensing JSON using replacement strings"
 readme = "README.md"
 requires-python = ">=3.8"
