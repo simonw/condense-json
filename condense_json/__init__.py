@@ -48,7 +48,7 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     substr_to_id = {substr: rep_id for rep_id, substr in replacements.items()}
     pattern = re.compile("|".join(map(re.escape, replacements.values())))
 
-    def process(value):
+    def process(value: Any) -> Any:
         if isinstance(value, dict):
             return {key: process(val) for key, val in value.items()}
         elif isinstance(value, list):
@@ -57,14 +57,14 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
             if not pattern.search(value):
                 return value
 
-            segments = []
-            last_index = 0
+            segments: list[Any] = []
+            last_index: int = 0
             for match in pattern.finditer(value):
                 start, end = match.start(), match.end()
                 if start > last_index:
                     segments.append(value[last_index:start])
-                matched_text = match.group(0)
-                replacement_id = substr_to_id[matched_text]
+                matched_text: str = match.group(0)
+                replacement_id: str = substr_to_id[matched_text]
                 segments.append({"$": replacement_id})
                 last_index = end
             if last_index < len(value):
