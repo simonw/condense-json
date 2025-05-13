@@ -41,6 +41,13 @@ def test_no_replacements() -> None:
     assert condense_json(input_json, replacements) == expected_output
 
 
+def test_replacement_not_used() -> None:
+    input = {"messages": [{"role": "user", "content": "What is 1231 * 2331?"}]}
+    replacements = {"r:01jv577ycee7re8wqdebbvygys": ""}
+    output = condense_json(input, replacements)
+    assert output == input
+
+
 def test_empty_json() -> None:
     input_json: Dict[str, Any] = {}
     replacements: Dict[str, str] = {"1": "anything"}
