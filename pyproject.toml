@@ -5,7 +5,7 @@ description = "Python function for condensing JSON using replacement strings"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Simon Willison"}]
-license = "Apache-2.0"
+license = { text = "Apache-2.0" }
 classifiers = [
     "Typing :: Typed"
 ]
@@ -31,3 +31,6 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+[tool.setuptools]
+license-files = [ "LICENSE" ]
