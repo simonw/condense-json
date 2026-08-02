@@ -1,5 +1,10 @@
 import re
-from typing import Any, Dict, Optional
+from typing import Mapping, Optional, Union
+
+# Any value that can be represented in JSON
+JSONValue = Union[
+    str, int, float, bool, None, "list[JSONValue]", "dict[str, JSONValue]"
+]
 
 # Single-key dicts using one of these keys have special meaning in the
 # condensed format, so any such dict found in the input must be escaped.
@@ -13,7 +18,9 @@ class UncondenseError(ValueError):
     """
 
 
-def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
+def condense_json(
+    obj: JSONValue, replacements: Mapping[str, Optional[str]]
+) -> JSONValue:
     """
     Recursively search through every string in the JSON-like object `obj`.
     For any string that contains one or more of the replacement substrings,
@@ -60,23 +67,25 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     guaranteeing a lossless round-trip.
     """
     # Filter out any blank replacements
-    replacements = {rep_id: substr for rep_id, substr in replacements.items() if substr}
+    filtered: dict[str, str] = {
+        rep_id: substr for rep_id, substr in replacements.items() if substr
+    }
 
-    substr_to_id = {substr: rep_id for rep_id, substr in replacements.items()}
+    substr_to_id = {substr: rep_id for rep_id, substr in filtered.items()}
     # Longer substrings first, so overlapping replacements prefer the
     # longest match regardless of dict insertion order
-    pattern: Optional[re.Pattern] = (
+    pattern: "Optional[re.Pattern[str]]" = (
         re.compile(
             "|".join(
                 re.escape(substr)
-                for substr in sorted(replacements.values(), key=len, reverse=True)
+                for substr in sorted(filtered.values(), key=len, reverse=True)
             )
         )
-        if replacements
+        if filtered
         else None
     )
 
-    def process(value: Any) -> Any:
+    def process(value: JSONValue) -> JSONValue:
         if isinstance(value, dict):
             processed = {key: process(val) for key, val in value.items()}
             if len(value) == 1 and next(iter(value)) in _MARKER_KEYS:
@@ -88,7 +97,7 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
             if pattern is None or not pattern.search(value):
                 return value
 
-            segments: list[Any] = []
+            segments: "list[JSONValue]" = []
             last_index: int = 0
             for match in pattern.finditer(value):
                 start, end = match.start(), match.end()
@@ -112,7 +121,9 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     return process(obj)
 
 
-def uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
+def uncondense_json(
+    obj: JSONValue, replacements: Mapping[str, Optional[str]]
+) -> JSONValue:
     """
     Recursively reverses the transformation made by condense_json.
 
@@ -131,14 +142,16 @@ def uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     """
     # Blank replacements are filtered during condensing, so no valid marker
     # can reference them - treat them as unknown IDs here
-    replacements = {rep_id: substr for rep_id, substr in replacements.items() if substr}
+    filtered: dict[str, str] = {
+        rep_id: substr for rep_id, substr in replacements.items() if substr
+    }
 
-    def lookup(rep_id: Any) -> str:
-        if not isinstance(rep_id, str) or rep_id not in replacements:
+    def lookup(rep_id: JSONValue) -> str:
+        if not isinstance(rep_id, str) or rep_id not in filtered:
             raise UncondenseError("Unknown replacement id: {!r}".format(rep_id))
-        return replacements[rep_id]
+        return filtered[rep_id]
 
-    def process(value: Any) -> Any:
+    def process(value: JSONValue) -> JSONValue:
         if isinstance(value, dict):
             # Check if this dict represents a condensed string:
             if "$raw" in value and len(value) == 1:

@@ -17,10 +17,18 @@ pip install condense-json
 
 The `condense_json` function searches a JSON-like object for strings that contain specified replacement substrings. It replaces these substrings with a compact representation, making the JSON more concise.  The `uncondense_json` function reverses this process.
 
-**`condense_json(obj: Dict, replacements: Dict[str, str]) -> Any`**
+**`condense_json(obj: JSONValue, replacements: Mapping[str, Optional[str]]) -> JSONValue`**
 
-*   **`obj`**: The JSON-like object (nested dictionaries, lists, and strings) to condense.
-*   **`replacements`**: A dictionary where keys are replacement IDs (e.g., "1", "2") and values are the strings they represent.
+*   **`obj`**: The JSON value to condense - any nesting of dictionaries, lists, strings, numbers, booleans and `None`. Top-level lists and strings work too, not just dictionaries.
+*   **`replacements`**: A mapping where keys are replacement IDs (e.g., "1", "2") and values are the strings they represent. Entries with blank values (`None` or `""`) are ignored.
+
+`JSONValue` is a recursive type alias exported by the package, covering anything representable in JSON:
+
+```python
+JSONValue = Union[str, int, float, bool, None, "list[JSONValue]", "dict[str, JSONValue]"]
+```
+
+If you pass a variable with a narrower concrete type such as `dict[str, str]`, your type checker may reject it because `dict` is invariant - annotate that variable as `JSONValue` (or `dict[str, Any]`) instead.
 
 The function returns a modified version of the input `obj` where matching substrings are replaced.  If a string consists *entirely* of a replacement string, it's replaced with `{"$": replacement_id}`. If a string contains one or more replacement strings, it's replaced with `{"$r": [ ...segments...]}` where segments are the parts of the original string and replacement IDs.
 
@@ -63,10 +71,10 @@ print(condensed_output)
 
 ```
 
-**`uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any`**
+**`uncondense_json(obj: JSONValue, replacements: Mapping[str, Optional[str]]) -> JSONValue`**
 
-*   **`obj`**: The condensed JSON-like object.
-*   **`replacements`**: The same `replacements` dictionary used for condensing.
+*   **`obj`**: The condensed JSON value.
+*   **`replacements`**: The same `replacements` mapping used for condensing.
 
 This function reverses the `condense_json` operation. It finds the  `{"$": replacement_id}` and `{"$r": [ ...segments...]}` structures and replaces them with the original strings from the `replacements` dictionary.
 

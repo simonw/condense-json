@@ -1,5 +1,5 @@
 import pytest
-from condense_json import condense_json, uncondense_json, UncondenseError
+from condense_json import condense_json, uncondense_json, UncondenseError, JSONValue
 from typing import Dict, Any, List
 
 
@@ -23,7 +23,7 @@ def test_uncondense_basic() -> None:
 
 def test_uncondense_non_condensed() -> None:
     # If the object is not condensed (no markers), it should remain unchanged.
-    original: Dict[str, str] = {"text": "This is a normal string without any changes."}
+    original: JSONValue = {"text": "This is a normal string without any changes."}
     replacements: Dict[str, str] = {"1": "not in the text"}
     uncondensed = uncondense_json(original, replacements)
     assert uncondensed == original
@@ -106,7 +106,7 @@ def test_blank_replacement_id_raises() -> None:
 def test_escaped_markers_do_not_raise() -> None:
     # A $raw-escaped marker-shaped dict is data, not a marker, so its
     # contents must not be validated as markers
-    original = {"query": {"$": "gt"}, "weird": {"$r": "not a list"}}
+    original: JSONValue = {"query": {"$": "gt"}, "weird": {"$r": "not a list"}}
     replacements: Dict[str, str] = {"1": "with foxes"}
     condensed = condense_json(original, replacements)
     assert uncondense_json(condensed, replacements) == original
