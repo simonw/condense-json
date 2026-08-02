@@ -6,9 +6,7 @@ def test_narrow_concrete_types_accepted_without_annotation() -> None:
     # Covariant input: narrowly typed variables must pass the type
     # checker with no JSONValue annotation required
     narrow_dict: Dict[str, str] = {"s": "a fox"}
-    assert condense_json(narrow_dict, {"1": "fox"}) == {
-        "s": {"$r": ["a ", {"$": "1"}]}
-    }
+    assert condense_json(narrow_dict, {"1": "fox"}) == {"s": {"$r": ["a ", {"$": "1"}]}}
     narrow_list: List[str] = ["a fox", "no match"]
     assert condense_json(narrow_list, {"1": "fox"}) == [
         {"$r": ["a ", {"$": "1"}]},
@@ -38,9 +36,7 @@ def test_top_level_list() -> None:
 
 
 def test_top_level_string() -> None:
-    assert condense_json("just a fox", {"1": "fox"}) == {
-        "$r": ["just a ", {"$": "1"}]
-    }
+    assert condense_json("just a fox", {"1": "fox"}) == {"$r": ["just a ", {"$": "1"}]}
     assert condense_json("fox", {"1": "fox"}) == {"$": "1"}
     assert uncondense_json({"$": "1"}, {"1": "fox"}) == "fox"
 

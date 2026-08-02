@@ -52,9 +52,7 @@ def test_double_condense_roundtrip() -> None:
         "price": {"$": "100"},
     }
     replacements: Dict[str, str] = {"1": "with foxes in it"}
-    condensed_twice = condense_json(
-        condense_json(original, replacements), replacements
-    )
+    condensed_twice = condense_json(condense_json(original, replacements), replacements)
     uncondensed_twice = uncondense_json(
         uncondense_json(condensed_twice, replacements), replacements
     )

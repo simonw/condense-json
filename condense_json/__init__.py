@@ -20,9 +20,7 @@ class UncondenseError(ValueError):
     """
 
 
-def condense_json(
-    obj: JSONInput, replacements: Mapping[str, Optional[str]]
-) -> Any:
+def condense_json(obj: JSONInput, replacements: Mapping[str, Optional[str]]) -> Any:
     """
     Recursively search through every string in the JSON-like object `obj`.
     For any string that contains one or more of the replacement substrings,
@@ -126,9 +124,7 @@ def condense_json(
     return process(obj)
 
 
-def uncondense_json(
-    obj: JSONInput, replacements: Mapping[str, Optional[str]]
-) -> Any:
+def uncondense_json(obj: JSONInput, replacements: Mapping[str, Optional[str]]) -> Any:
     """
     Recursively reverses the transformation made by condense_json.
 
@@ -185,9 +181,7 @@ def uncondense_json(
                     elif isinstance(seg, dict) and len(seg) == 1 and "$" in seg:
                         rebuilt += lookup(seg["$"])
                     else:
-                        raise UncondenseError(
-                            'Invalid "$r" segment: {!r}'.format(seg)
-                        )
+                        raise UncondenseError('Invalid "$r" segment: {!r}'.format(seg))
                 return rebuilt
             else:
                 # Not a condensed string; process the dict normally.
