@@ -125,17 +125,8 @@ assert uncondense_json(condensed, {"1": "with foxes"}) == original
 
 ## Development
 
-To contribute to this library, first checkout the code. Then create a new virtual environment:
+To contribute to this library, checkout the code and run the tests with `uv run pytest`:
 ```bash
 cd condense-json
-python -m venv venv
-source venv/bin/activate
-```
-Now install the dependencies and test dependencies:
-```bash
-python -m pip install -e . --group dev
-```
-To run the tests:
-```bash
-python -m pytest
+uv run pytest
 ```
