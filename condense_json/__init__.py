@@ -74,12 +74,12 @@ def condense_json(
     }
 
     # If multiple IDs share the same substring, the first one wins
-    substr_to_id: "dict[str, str]" = {}
+    substr_to_id: dict[str, str] = {}
     for rep_id, substr in filtered.items():
         substr_to_id.setdefault(substr, rep_id)
     # Longer substrings first, so overlapping replacements prefer the
     # longest match regardless of dict insertion order
-    pattern: "Optional[re.Pattern[str]]" = (
+    pattern: Optional[re.Pattern[str]] = (
         re.compile(
             "|".join(
                 re.escape(substr)
@@ -102,7 +102,7 @@ def condense_json(
             if pattern is None or not pattern.search(value):
                 return value
 
-            segments: "list[Any]" = []
+            segments: list[Any] = []
             last_index: int = 0
             for match in pattern.finditer(value):
                 start, end = match.start(), match.end()
