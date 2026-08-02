@@ -87,6 +87,17 @@ assert uncondensed == original
 ```
 If the input `obj` to `uncondense_json` doesn't contain any condensed structures, it returns the input unchanged.
 
+`uncondense_json` is strict: it raises `condense_json.UncondenseError` (a subclass of `ValueError`) if the condensed input is malformed rather than silently producing corrupted output. This covers markers referencing a replacement ID that is missing from `replacements` (or one with a blank value, which `condense_json` never emits markers for), a `$r` value that is not a list, and `$r` segments that are not strings or `{"$": id}` dictionaries.
+
+```python
+from condense_json import uncondense_json, UncondenseError
+
+try:
+    uncondense_json({"query": {"$": "gt"}}, {"1": "with foxes in it"})
+except UncondenseError as ex:
+    print(ex)  # Unknown replacement id: 'gt'
+```
+
 ### Escaping of `$`, `$r` and `$raw` keys
 
 The condensed format gives special meaning to single-key dictionaries with a `$` or `$r` key. If your input data already contains dictionaries of that shape - for example `{"price": {"$": "100"}}` - they could be misinterpreted when uncondensing.

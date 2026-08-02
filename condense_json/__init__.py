@@ -6,6 +6,13 @@ from typing import Any, Dict, Optional
 _MARKER_KEYS = ("$", "$r", "$raw")
 
 
+class UncondenseError(ValueError):
+    """
+    Raised by uncondense_json when the condensed object is malformed or
+    references a replacement ID not present in the replacements dict.
+    """
+
+
 def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     """
     Recursively search through every string in the JSON-like object `obj`.
@@ -118,7 +125,18 @@ def uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
         being interpreted as a marker.
 
     Other types (lists, dicts without "$r", or regular strings) are left intact.
+
+    Raises UncondenseError if a marker references an unknown (or blank)
+    replacement ID, or if a "$r" structure is malformed.
     """
+    # Blank replacements are filtered during condensing, so no valid marker
+    # can reference them - treat them as unknown IDs here
+    replacements = {rep_id: substr for rep_id, substr in replacements.items() if substr}
+
+    def lookup(rep_id: Any) -> str:
+        if not isinstance(rep_id, str) or rep_id not in replacements:
+            raise UncondenseError("Unknown replacement id: {!r}".format(rep_id))
+        return replacements[rep_id]
 
     def process(value: Any) -> Any:
         if isinstance(value, dict):
@@ -132,21 +150,26 @@ def uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
                 return process(raw)
             elif "$" in value and len(value) == 1:
                 # Short form: the entire string was replaced.
-                rep_id = value["$"]
-                return replacements[rep_id]
+                return lookup(value["$"])
             elif "$r" in value and len(value) == 1:
                 # Long form: a list of segments.
                 segments = value["$r"]
+                if not isinstance(segments, list):
+                    raise UncondenseError(
+                        '"$r" value must be a list of segments, got: {!r}'.format(
+                            segments
+                        )
+                    )
                 rebuilt = ""
                 for seg in segments:
                     if isinstance(seg, str):
                         rebuilt += seg
-                    elif isinstance(seg, dict) and "$" in seg:
-                        rep_id = seg["$"]
-                        rebuilt += replacements[rep_id]
+                    elif isinstance(seg, dict) and len(seg) == 1 and "$" in seg:
+                        rebuilt += lookup(seg["$"])
                     else:
-                        # If an unexpected type is encountered, process it recursively.
-                        rebuilt += str(process(seg))
+                        raise UncondenseError(
+                            'Invalid "$r" segment: {!r}'.format(seg)
+                        )
                 return rebuilt
             else:
                 # Not a condensed string; process the dict normally.
