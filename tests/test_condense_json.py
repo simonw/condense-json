@@ -118,6 +118,14 @@ def test_overlapping_matches_are_leftmost_longest() -> None:
     assert condense_json(input_json, replacements) == expected
 
 
+def test_duplicate_replacement_values_first_wins() -> None:
+    input_json: JSONValue = {"s": "a fox ran"}
+    replacements: Dict[str, str] = {"1": "fox", "2": "fox"}
+    expected: Dict[str, Any] = {"s": {"$r": ["a ", {"$": "1"}, " ran"]}}
+
+    assert condense_json(input_json, replacements) == expected
+
+
 def test_blank_or_none_replacements() -> None:
     input_json: Dict[str, Any] = {
         "outer": {"inner": {"deep": "something deep inside with foxes in it"}}
