@@ -25,4 +25,4 @@ jobs:
     - name: Run tests
       run: |
         python -m pytest
-
+        python -m mypy condense_json tests
