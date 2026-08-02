@@ -24,6 +24,12 @@ The `condense_json` function searches a JSON-like object for strings that contai
 
 `JSONInput` is a recursive type alias covering anything representable in JSON, built from covariant container types so that narrowly typed values such as `dict[str, str]` are accepted without any extra annotation. Results are typed `Any`, so they can be indexed, iterated and serialized without narrowing.
 
+```python
+JSONInput = Union[
+    str, int, float, bool, None, "Sequence[JSONInput]", "Mapping[str, JSONInput]"
+]
+```
+
 The function returns a modified version of the input `obj` where matching substrings are replaced.  If a string consists *entirely* of a replacement string, it's replaced with `{"$": replacement_id}`. If a string contains one or more replacement strings, it's replaced with `{"$r": [ ...segments...]}` where segments are the parts of the original string and replacement IDs.
 
 Matches are found scanning left to right. Where replacement substrings overlap - for example `"quick"` and `"quick brown fox"` - the longest match wins, regardless of the order of the `replacements` dictionary, so output is deterministic for equivalent inputs.
