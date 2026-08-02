@@ -127,7 +127,7 @@ source venv/bin/activate
 ```
 Now install the dependencies and test dependencies:
 ```bash
-python -m pip install -e '.[test]'
+python -m pip install -e . --group dev
 ```
 To run the tests:
 ```bash
