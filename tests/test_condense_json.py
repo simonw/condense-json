@@ -1,5 +1,5 @@
 from condense_json import condense_json
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 def test_condense_json() -> None:

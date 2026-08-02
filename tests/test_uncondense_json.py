@@ -1,6 +1,6 @@
 import pytest
 from condense_json import condense_json, uncondense_json, UncondenseError
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 def test_uncondense_basic() -> None:
