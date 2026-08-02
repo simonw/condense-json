@@ -1,5 +1,6 @@
-from condense_json import condense_json, uncondense_json
-from typing import Dict, Any, List
+import pytest
+from condense_json import condense_json, uncondense_json, UncondenseError
+from typing import Dict, Any
 
 
 def test_uncondense_basic() -> None:
@@ -50,3 +51,62 @@ def test_uncondense_mixed() -> None:
     condensed = condense_json(original, replacements)
     uncondensed = uncondense_json(condensed, replacements)
     assert uncondensed == original
+
+
+def test_uncondense_error_is_a_value_error() -> None:
+    assert issubclass(UncondenseError, ValueError)
+
+
+def test_unknown_replacement_id_raises() -> None:
+    with pytest.raises(UncondenseError) as excinfo:
+        uncondense_json({"query": {"$": "gt"}}, {"1": "with foxes"})
+    assert "gt" in str(excinfo.value)
+
+
+def test_unknown_replacement_id_in_segments_raises() -> None:
+    with pytest.raises(UncondenseError) as excinfo:
+        uncondense_json(
+            {"s": {"$r": ["hello ", {"$": "missing"}]}}, {"1": "with foxes"}
+        )
+    assert "missing" in str(excinfo.value)
+
+
+def test_non_string_replacement_id_raises() -> None:
+    with pytest.raises(UncondenseError):
+        uncondense_json({"x": {"$": 100}}, {"1": "with foxes"})
+
+
+def test_non_list_segments_raises() -> None:
+    with pytest.raises(UncondenseError):
+        uncondense_json({"x": {"$r": "hello"}}, {"1": "with foxes"})
+
+
+def test_invalid_segment_type_raises() -> None:
+    with pytest.raises(UncondenseError) as excinfo:
+        uncondense_json({"x": {"$r": ["a", ["b", "c"]]}}, {"1": "with foxes"})
+    assert "segment" in str(excinfo.value)
+
+
+def test_multi_key_dict_segment_raises() -> None:
+    with pytest.raises(UncondenseError):
+        uncondense_json(
+            {"x": {"$r": [{"$": "1", "extra": "key"}]}}, {"1": "with foxes"}
+        )
+
+
+def test_blank_replacement_id_raises() -> None:
+    # condense_json never emits markers for blank replacements, so a marker
+    # referencing one is malformed
+    with pytest.raises(UncondenseError):
+        uncondense_json({"x": {"$": "2"}}, {"1": "with foxes", "2": None})
+    with pytest.raises(UncondenseError):
+        uncondense_json({"x": {"$": "3"}}, {"1": "with foxes", "3": ""})
+
+
+def test_escaped_markers_do_not_raise() -> None:
+    # A $raw-escaped marker-shaped dict is data, not a marker, so its
+    # contents must not be validated as markers
+    original = {"query": {"$": "gt"}, "weird": {"$r": "not a list"}}
+    replacements: Dict[str, str] = {"1": "with foxes"}
+    condensed = condense_json(original, replacements)
+    assert uncondense_json(condensed, replacements) == original
