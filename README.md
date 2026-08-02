@@ -24,6 +24,8 @@ The `condense_json` function searches a JSON-like object for strings that contai
 
 The function returns a modified version of the input `obj` where matching substrings are replaced.  If a string consists *entirely* of a replacement string, it's replaced with `{"$": replacement_id}`. If a string contains one or more replacement strings, it's replaced with `{"$r": [ ...segments...]}` where segments are the parts of the original string and replacement IDs.
 
+Matches are found scanning left to right. Where replacement substrings overlap - for example `"quick"` and `"quick brown fox"` - the longest match wins, regardless of the order of the `replacements` dictionary, so output is deterministic for equivalent inputs.
+
 **Example:**
 
 ```python

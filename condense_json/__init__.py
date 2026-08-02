@@ -43,6 +43,10 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
           }
         }
 
+    Matches are found scanning left to right; where replacement substrings
+    overlap, the longest match wins regardless of the order of the
+    `replacements` dict.
+
     Any single-key dict in the input whose sole key is "$", "$r" or "$raw"
     would be misinterpreted by uncondense_json, so it is escaped by wrapping
     it in {"$raw": ...}. uncondense_json removes exactly one wrapper layer,
@@ -52,8 +56,15 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     replacements = {rep_id: substr for rep_id, substr in replacements.items() if substr}
 
     substr_to_id = {substr: rep_id for rep_id, substr in replacements.items()}
+    # Longer substrings first, so overlapping replacements prefer the
+    # longest match regardless of dict insertion order
     pattern: Optional[re.Pattern] = (
-        re.compile("|".join(map(re.escape, replacements.values())))
+        re.compile(
+            "|".join(
+                re.escape(substr)
+                for substr in sorted(replacements.values(), key=len, reverse=True)
+            )
+        )
         if replacements
         else None
     )
