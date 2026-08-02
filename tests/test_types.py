@@ -32,7 +32,7 @@ def test_mixed_scalar_types_accepted() -> None:
 
 
 def test_top_level_list() -> None:
-    result: JSONValue = condense_json(["a fox ran", "no match"], {"1": "fox"})
+    result = condense_json(["a fox ran", "no match"], {"1": "fox"})
     assert result == [{"$r": ["a ", {"$": "1"}, " ran"]}, "no match"]
     assert uncondense_json(result, {"1": "fox"}) == ["a fox ran", "no match"]
 
