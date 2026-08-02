@@ -1,4 +1,4 @@
-from condense_json import JSONValue, condense_json, uncondense_json
+from condense_json import condense_json, uncondense_json
 from typing import Dict, List, Mapping, Optional
 
 
@@ -26,8 +26,8 @@ def test_results_support_structural_access() -> None:
     assert len(result) == 2
 
 
-def test_jsonvalue_is_exported() -> None:
-    value: JSONValue = {"nested": [1, 2.5, True, None, "text"]}
+def test_mixed_scalar_types_accepted() -> None:
+    value = {"nested": [1, 2.5, True, None, "text"]}
     assert condense_json(value, {}) == value
 
 

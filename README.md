@@ -22,7 +22,7 @@ The `condense_json` function searches a JSON-like object for strings that contai
 *   **`obj`**: The JSON value to condense - any nesting of dictionaries, lists, strings, numbers, booleans and `None`. Top-level lists and strings work too, not just dictionaries.
 *   **`replacements`**: A mapping where keys are replacement IDs (e.g., "1", "2") and values are the strings they represent. Entries with blank values (`None` or `""`) are ignored.
 
-`JSONInput` is a recursive type alias covering anything representable in JSON, built from covariant container types so that narrowly typed values such as `dict[str, str]` are accepted without any extra annotation. Results are typed `Any`, so they can be indexed, iterated and serialized without narrowing. The package also exports `JSONValue`, a concrete equivalent (`list`/`dict` instead of `Sequence`/`Mapping`) useful for annotating your own JSON data.
+`JSONInput` is a recursive type alias covering anything representable in JSON, built from covariant container types so that narrowly typed values such as `dict[str, str]` are accepted without any extra annotation. Results are typed `Any`, so they can be indexed, iterated and serialized without narrowing.
 
 The function returns a modified version of the input `obj` where matching substrings are replaced.  If a string consists *entirely* of a replacement string, it's replaced with `{"$": replacement_id}`. If a string contains one or more replacement strings, it's replaced with `{"$r": [ ...segments...]}` where segments are the parts of the original string and replacement IDs.
 

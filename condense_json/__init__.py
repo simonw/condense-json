@@ -1,14 +1,9 @@
 import re
 from typing import Any, Mapping, Optional, Sequence, Union
 
-# Any value that can be represented in JSON - useful for annotating your
-# own JSON data
-JSONValue = Union[
-    str, int, float, bool, None, "list[JSONValue]", "dict[str, JSONValue]"
-]
-
-# Input variant using covariant container types, so narrowly typed values
-# such as dict[str, str] are accepted without needing a JSONValue annotation
+# Any value that can be represented in JSON. Uses covariant container
+# types, so narrowly typed values such as dict[str, str] are accepted
+# without needing a broader annotation
 JSONInput = Union[
     str, int, float, bool, None, "Sequence[JSONInput]", "Mapping[str, JSONInput]"
 ]
