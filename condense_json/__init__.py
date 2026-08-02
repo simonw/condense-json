@@ -1,9 +1,16 @@
 import re
-from typing import Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Sequence, Union
 
-# Any value that can be represented in JSON
+# Any value that can be represented in JSON - useful for annotating your
+# own JSON data
 JSONValue = Union[
     str, int, float, bool, None, "list[JSONValue]", "dict[str, JSONValue]"
+]
+
+# Input variant using covariant container types, so narrowly typed values
+# such as dict[str, str] are accepted without needing a JSONValue annotation
+JSONInput = Union[
+    str, int, float, bool, None, "Sequence[JSONInput]", "Mapping[str, JSONInput]"
 ]
 
 # Single-key dicts using one of these keys have special meaning in the
@@ -19,8 +26,8 @@ class UncondenseError(ValueError):
 
 
 def condense_json(
-    obj: JSONValue, replacements: Mapping[str, Optional[str]]
-) -> JSONValue:
+    obj: JSONInput, replacements: Mapping[str, Optional[str]]
+) -> Any:
     """
     Recursively search through every string in the JSON-like object `obj`.
     For any string that contains one or more of the replacement substrings,
@@ -88,7 +95,7 @@ def condense_json(
         else None
     )
 
-    def process(value: JSONValue) -> JSONValue:
+    def process(value: JSONInput) -> Any:
         if isinstance(value, dict):
             processed = {key: process(val) for key, val in value.items()}
             if len(value) == 1 and next(iter(value)) in _MARKER_KEYS:
@@ -100,7 +107,7 @@ def condense_json(
             if pattern is None or not pattern.search(value):
                 return value
 
-            segments: "list[JSONValue]" = []
+            segments: "list[Any]" = []
             last_index: int = 0
             for match in pattern.finditer(value):
                 start, end = match.start(), match.end()
@@ -125,8 +132,8 @@ def condense_json(
 
 
 def uncondense_json(
-    obj: JSONValue, replacements: Mapping[str, Optional[str]]
-) -> JSONValue:
+    obj: JSONInput, replacements: Mapping[str, Optional[str]]
+) -> Any:
     """
     Recursively reverses the transformation made by condense_json.
 
@@ -149,12 +156,12 @@ def uncondense_json(
         rep_id: substr for rep_id, substr in replacements.items() if substr
     }
 
-    def lookup(rep_id: JSONValue) -> str:
+    def lookup(rep_id: JSONInput) -> str:
         if not isinstance(rep_id, str) or rep_id not in filtered:
             raise UncondenseError("Unknown replacement id: {!r}".format(rep_id))
         return filtered[rep_id]
 
-    def process(value: JSONValue) -> JSONValue:
+    def process(value: JSONInput) -> Any:
         if isinstance(value, dict):
             # Check if this dict represents a condensed string:
             if "$raw" in value and len(value) == 1:

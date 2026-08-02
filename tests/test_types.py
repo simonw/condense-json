@@ -1,5 +1,29 @@
 from condense_json import JSONValue, condense_json, uncondense_json
-from typing import Mapping, Optional
+from typing import Dict, List, Mapping, Optional
+
+
+def test_narrow_concrete_types_accepted_without_annotation() -> None:
+    # Covariant input: narrowly typed variables must pass the type
+    # checker with no JSONValue annotation required
+    narrow_dict: Dict[str, str] = {"s": "a fox"}
+    assert condense_json(narrow_dict, {"1": "fox"}) == {
+        "s": {"$r": ["a ", {"$": "1"}]}
+    }
+    narrow_list: List[str] = ["a fox", "no match"]
+    assert condense_json(narrow_list, {"1": "fox"}) == [
+        {"$r": ["a ", {"$": "1"}]},
+        "no match",
+    ]
+    inferred = {"messages": [{"role": "user", "content": "hi"}]}
+    assert condense_json(inferred, {"1": "fox"}) == inferred
+
+
+def test_results_support_structural_access() -> None:
+    # Any out: indexing and len() on results must type-check without
+    # isinstance narrowing or casts
+    result = uncondense_json({"x": {"$": "1"}, "y": "z"}, {"1": "fox"})
+    assert result["x"] == "fox"
+    assert len(result) == 2
 
 
 def test_jsonvalue_is_exported() -> None:

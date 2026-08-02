@@ -1,4 +1,4 @@
-from condense_json import condense_json, JSONValue
+from condense_json import condense_json
 from typing import Dict, Any, List
 
 
@@ -34,7 +34,7 @@ def test_condense_json() -> None:
 
 
 def test_no_replacements() -> None:
-    input_json: JSONValue = {"text": "This is a normal string"}
+    input_json: Dict[str, str] = {"text": "This is a normal string"}
     replacements: Dict[str, str] = {"1": "not in the text"}
     expected_output: Dict[str, str] = {"text": "This is a normal string"}
 
@@ -42,7 +42,7 @@ def test_no_replacements() -> None:
 
 
 def test_replacement_not_used() -> None:
-    input: JSONValue = {"messages": [{"role": "user", "content": "What is 1231 * 2331?"}]}
+    input = {"messages": [{"role": "user", "content": "What is 1231 * 2331?"}]}
     replacements = {"r:01jv577ycee7re8wqdebbvygys": ""}
     output = condense_json(input, replacements)
     assert output == input
@@ -87,7 +87,7 @@ def test_nested_replacements() -> None:
 
 
 def test_longest_replacement_wins() -> None:
-    input_json: JSONValue = {"s": "the quick brown fox"}
+    input_json: Dict[str, str] = {"s": "the quick brown fox"}
     expected: Dict[str, Any] = {"s": {"$r": ["the ", {"$": "2"}]}}
 
     # The longer replacement must win no matter the dict insertion order
@@ -99,7 +99,7 @@ def test_longest_replacement_wins() -> None:
 
 
 def test_shorter_replacement_still_used_where_longer_does_not_match() -> None:
-    input_json: JSONValue = {"s": "a quick step by the quick brown fox"}
+    input_json: Dict[str, str] = {"s": "a quick step by the quick brown fox"}
     replacements: Dict[str, str] = {"1": "quick", "2": "quick brown fox"}
     expected: Dict[str, Any] = {
         "s": {"$r": ["a ", {"$": "1"}, " step by the ", {"$": "2"}]}
@@ -111,7 +111,7 @@ def test_shorter_replacement_still_used_where_longer_does_not_match() -> None:
 def test_overlapping_matches_are_leftmost_longest() -> None:
     # "abc" starts before "bcd" so it wins the overlap, then "bcd"
     # can no longer match
-    input_json: JSONValue = {"s": "abcd"}
+    input_json: Dict[str, str] = {"s": "abcd"}
     replacements: Dict[str, str] = {"1": "bcd", "2": "abc"}
     expected: Dict[str, Any] = {"s": {"$r": [{"$": "2"}, "d"]}}
 
@@ -119,7 +119,7 @@ def test_overlapping_matches_are_leftmost_longest() -> None:
 
 
 def test_duplicate_replacement_values_first_wins() -> None:
-    input_json: JSONValue = {"s": "a fox ran"}
+    input_json: Dict[str, str] = {"s": "a fox ran"}
     replacements: Dict[str, str] = {"1": "fox", "2": "fox"}
     expected: Dict[str, Any] = {"s": {"$r": ["a ", {"$": "1"}, " ran"]}}
 
