@@ -85,6 +85,23 @@ assert uncondensed == original
 ```
 If the input `obj` to `uncondense_json` doesn't contain any condensed structures, it returns the input unchanged.
 
+### Escaping of `$`, `$r` and `$raw` keys
+
+The condensed format gives special meaning to single-key dictionaries with a `$` or `$r` key. If your input data already contains dictionaries of that shape - for example `{"price": {"$": "100"}}` - they could be misinterpreted when uncondensing.
+
+To prevent this, `condense_json` escapes any single-key dictionary whose sole key is `$`, `$r` or `$raw` by wrapping it in `{"$raw": ...}`:
+
+```python
+from condense_json import condense_json, uncondense_json
+
+original = {"price": {"$": "100"}}
+condensed = condense_json(original, {"1": "with foxes"})
+# {'price': {'$raw': {'$': '100'}}}
+assert uncondense_json(condensed, {"1": "with foxes"}) == original
+```
+
+`uncondense_json` removes exactly one `$raw` wrapper layer and restores the contents without interpreting them as a marker. Because `$raw` itself is escaped in the same way, this works even if your data already contains `$raw` keys, and round-trips of `condense_json` followed by `uncondense_json` are always lossless - including when applied more than once.
+
 ## Development
 
 To contribute to this library, first checkout the code. Then create a new virtual environment:

@@ -1,5 +1,9 @@
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+# Single-key dicts using one of these keys have special meaning in the
+# condensed format, so any such dict found in the input must be escaped.
+_MARKER_KEYS = ("$", "$r", "$raw")
 
 
 def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
@@ -38,23 +42,32 @@ def condense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
             }
           }
         }
+
+    Any single-key dict in the input whose sole key is "$", "$r" or "$raw"
+    would be misinterpreted by uncondense_json, so it is escaped by wrapping
+    it in {"$raw": ...}. uncondense_json removes exactly one wrapper layer,
+    guaranteeing a lossless round-trip.
     """
     # Filter out any blank replacements
     replacements = {rep_id: substr for rep_id, substr in replacements.items() if substr}
 
-    if not replacements:
-        return obj
-
     substr_to_id = {substr: rep_id for rep_id, substr in replacements.items()}
-    pattern = re.compile("|".join(map(re.escape, replacements.values())))
+    pattern: Optional[re.Pattern] = (
+        re.compile("|".join(map(re.escape, replacements.values())))
+        if replacements
+        else None
+    )
 
     def process(value: Any) -> Any:
         if isinstance(value, dict):
-            return {key: process(val) for key, val in value.items()}
+            processed = {key: process(val) for key, val in value.items()}
+            if len(value) == 1 and next(iter(value)) in _MARKER_KEYS:
+                return {"$raw": processed}
+            return processed
         elif isinstance(value, list):
             return [process(item) for item in value]
         elif isinstance(value, str):
-            if not pattern.search(value):
+            if pattern is None or not pattern.search(value):
                 return value
 
             segments: list[Any] = []
@@ -89,6 +102,9 @@ def uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
       - {"$": replacement_id}  -> replaced entirely, so substitute with replacements[replacement_id]
       - {"$r": [ ... segments ... ]} -> rebuild the string by replacing any {"$": rep_id} segments
         with the actual replacement text.
+      - {"$raw": ...} -> an escaped marker-shaped dict from the original input;
+        one wrapper layer is removed and the contents are restored without
+        being interpreted as a marker.
 
     Other types (lists, dicts without "$r", or regular strings) are left intact.
     """
@@ -96,7 +112,14 @@ def uncondense_json(obj: Dict, replacements: Dict[str, str]) -> Any:
     def process(value: Any) -> Any:
         if isinstance(value, dict):
             # Check if this dict represents a condensed string:
-            if "$" in value and len(value) == 1:
+            if "$raw" in value and len(value) == 1:
+                # Escaped dict: unwrap one layer, and do not treat the
+                # top level of the unwrapped value as a marker.
+                raw = value["$raw"]
+                if isinstance(raw, dict):
+                    return {k: process(v) for k, v in raw.items()}
+                return process(raw)
+            elif "$" in value and len(value) == 1:
                 # Short form: the entire string was replaced.
                 rep_id = value["$"]
                 return replacements[rep_id]
