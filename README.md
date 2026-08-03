@@ -5,7 +5,7 @@
 [![Changelog](https://img.shields.io/github/v/release/simonw/condense-json?include_prereleases&label=changelog)](https://github.com/simonw/condense-json/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/condense-json/blob/main/LICENSE)
 
-Python function for condensing JSON using replacement strings
+Python function for condensing JSON using replacement strings and values
 
 ## Installation
 
@@ -15,12 +15,12 @@ pip install condense-json
 ```
 ## Usage
 
-The `condense_json` function searches a JSON-like object for strings that contain specified replacement substrings. It replaces these substrings with a compact representation, making the JSON more concise.  The `uncondense_json` function reverses this process.
+The `condense_json` function searches a JSON-like object for strings that contain specified replacement substrings, and for subtrees that are structurally equal to specified replacement dicts or lists. It replaces these with a compact representation, making the JSON more concise.  The `uncondense_json` function reverses this process.
 
-**`condense_json(obj: JSONInput, replacements: Mapping[str, Optional[str]]) -> Any`**
+**`condense_json(obj: JSONInput, replacements: Mapping[str, Any]) -> Any`**
 
 *   **`obj`**: The JSON value to condense - any nesting of dictionaries, lists, strings, numbers, booleans and `None`. Top-level lists and strings work too, not just dictionaries.
-*   **`replacements`**: A mapping where keys are replacement IDs (e.g., "1", "2") and values are the strings they represent. Entries with blank values (`None` or `""`) are ignored.
+*   **`replacements`**: A mapping where keys are replacement IDs (e.g., "1", "2") and values are the content they represent - strings, which match as substrings, or dicts and lists, which match whole subtrees (see [Structural replacements](#structural-replacements-for-dicts-and-lists)). Entries with empty values (`None`, `""`, `{}`, `[]`) or non-string scalar values are ignored.
 
 `JSONInput` is a recursive type alias covering anything representable in JSON, built from covariant container types so that narrowly typed values such as `dict[str, str]` are accepted without any extra annotation. Results are typed `Any`, so they can be indexed, iterated and serialized without narrowing.
 
@@ -71,7 +71,7 @@ print(condensed_output)
 
 ```
 
-**`uncondense_json(obj: JSONInput, replacements: Mapping[str, Optional[str]]) -> Any`**
+**`uncondense_json(obj: JSONInput, replacements: Mapping[str, Any]) -> Any`**
 
 *   **`obj`**: The condensed JSON value.
 *   **`replacements`**: The same `replacements` mapping used for condensing.
@@ -95,7 +95,7 @@ assert uncondensed == original
 ```
 If the input `obj` to `uncondense_json` doesn't contain any condensed structures, it returns the input unchanged.
 
-`uncondense_json` is strict: it raises `condense_json.UncondenseError` (a subclass of `ValueError`) if the condensed input is malformed rather than silently producing corrupted output. This covers markers referencing a replacement ID that is missing from `replacements` (or one with a blank value, which `condense_json` never emits markers for), a `$r` value that is not a list, and `$r` segments that are not strings or `{"$": id}` dictionaries.
+`uncondense_json` is strict: it raises `condense_json.UncondenseError` (a subclass of `ValueError`) if the condensed input is malformed rather than silently producing corrupted output. This covers markers referencing a replacement ID that is missing from `replacements` (or one with an empty value, which `condense_json` never emits markers for), a `$r` value that is not a list, `$r` segments that are not strings or `{"$": id}` dictionaries, and `$r` segments referencing a dict or list replacement - a reference inside a string must resolve to a string.
 
 ```python
 from condense_json import uncondense_json, UncondenseError
@@ -105,6 +105,42 @@ try:
 except UncondenseError as ex:
     print(ex)  # Unknown replacement id: 'gt'
 ```
+
+### Structural replacements for dicts and lists
+
+A replacement value can also be a dict or a list. These match **structurally**: any subtree of the input that is equal to the value - compared in canonical JSON form, so key order and formatting never matter - is replaced whole with `{"$": replacement_id}`. This is useful when a payload embeds a known blob of JSON, such as an API response that echoes back the JSON schema or tool definitions it was called with:
+
+```python
+from condense_json import condense_json, uncondense_json
+
+schema = {
+    "type": "object",
+    "properties": {"name": {"type": "string"}},
+    "required": ["name"],
+}
+response = {
+    "output": {"name": "Cleo"},
+    "format": {
+        # Same schema, different key order - still matches
+        "schema": {
+            "required": ["name"],
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+        }
+    },
+}
+condensed = condense_json(response, {"s": schema})
+# {'output': {'name': 'Cleo'}, 'format': {'schema': {'$': 's'}}}
+assert uncondense_json(condensed, {"s": schema}) == response
+```
+
+The rules:
+
+- **Matching is outermost-wins.** Once a subtree matches, its interior is not searched further. Inner replacements still match anywhere an outer one does not.
+- **Matching is strictly structural.** A *string* that happens to contain the JSON serialization of a replacement value is never matched - a reference in string context must resolve to a string. String and structural replacements compose freely in a single call.
+- **Resolution substitutes an independent copy.** Each `{"$": id}` for a dict or list resolves to a deep copy, so mutating the result never aliases the `replacements` mapping or the value behind another marker.
+- **Round-trips are structural, not byte-identical.** `uncondense_json(condense_json(obj, r), r) == obj` always holds, but a matched subtree comes back with the *replacement's* key order, since the original ordering is not recorded. If you re-serialize the result, bytes may differ even though the value is equal.
+- **Non-string scalars never participate.** A replacement of `42` or `True` is ignored rather than riddling the output with markers, as are empty dicts and lists.
 
 ### Escaping of `$`, `$r` and `$raw` keys
 
@@ -121,7 +157,7 @@ condensed = condense_json(original, {"1": "with foxes"})
 assert uncondense_json(condensed, {"1": "with foxes"}) == original
 ```
 
-`uncondense_json` removes exactly one `$raw` wrapper layer and restores the contents without interpreting them as a marker. Because `$raw` itself is escaped in the same way, this works even if your data already contains `$raw` keys, and round-trips of `condense_json` followed by `uncondense_json` are always lossless - including when applied more than once.
+`uncondense_json` removes exactly one `$raw` wrapper layer and restores the contents without interpreting them as a marker. Because `$raw` itself is escaped in the same way, this works even if your data already contains `$raw` keys, and round-trips of `condense_json` followed by `uncondense_json` are always lossless - including when applied more than once. A marker-shaped dict that structurally matches a replacement value is referenced rather than escaped, and restores identically either way.
 
 ## Development
 
