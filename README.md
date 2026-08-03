@@ -15,12 +15,12 @@ pip install condense-json
 ```
 ## Usage
 
-The `condense_json` function searches a JSON-like object for strings that contain specified replacement substrings, and for subtrees that are structurally equal to specified replacement dicts or lists. It replaces these with a compact representation, making the JSON more concise.  The `uncondense_json` function reverses this process.
+The `condense_json` function searches a JSON-like object for content that matches entries in a replacements mapping: strings that contain replacement substrings, subtrees that are structurally equal to replacement dicts or lists, and dicts that are *close* to a replacement dict, which are stored as that base plus a patch. It replaces each with a compact reference, making the JSON more concise.  The `uncondense_json` function reverses this process.
 
 **`condense_json(obj: JSONInput, replacements: Mapping[str, Any]) -> Any`**
 
 *   **`obj`**: The JSON value to condense - any nesting of dictionaries, lists, strings, numbers, booleans and `None`. Top-level lists and strings work too, not just dictionaries.
-*   **`replacements`**: A mapping where keys are replacement IDs (e.g., "1", "2") and values are the content they represent - strings, which match as substrings, or dicts and lists, which match whole subtrees (see [Structural replacements](#structural-replacements-for-dicts-and-lists)). Entries with empty values (`None`, `""`, `{}`, `[]`) or non-string scalar values are ignored.
+*   **`replacements`**: A mapping where keys are replacement IDs (e.g., "1", "2") and values are the content they represent - strings, which match as substrings, or dicts and lists, which match whole subtrees (see [Structural replacements](#structural-replacements-for-dicts-and-lists)); dict values additionally serve as bases for near-matches (see [Merge references](#merge-references-a-base-object-plus-a-patch)). Entries with empty values (`None`, `""`, `{}`, `[]`) or non-string scalar values are ignored.
 
 `JSONInput` is a recursive type alias covering anything representable in JSON, built from covariant container types so that narrowly typed values such as `dict[str, str]` are accepted without any extra annotation. Results are typed `Any`, so they can be indexed, iterated and serialized without narrowing.
 
@@ -30,7 +30,11 @@ JSONInput = Union[
 ]
 ```
 
-The function returns a modified version of the input `obj` where matching substrings are replaced.  If a string consists *entirely* of a replacement string, it's replaced with `{"$": replacement_id}`. If a string contains one or more replacement strings, it's replaced with `{"$r": [ ...segments...]}` where segments are the parts of the original string and replacement IDs.
+The function returns a modified version of the input `obj` with matches replaced by references. Three reference forms appear in the output:
+
+- `{"$": replacement_id}` - a whole value that matched: a string consisting *entirely* of a replacement string, or a dict or list structurally equal to a replacement value.
+- `{"$r": [ ...segments... ]}` - a string that *contains* one or more replacement strings, broken into literal segments and `{"$": id}` references.
+- `{"$": {"m": base_id, "u": {...}, "d": [...]}}` - a dict stored as a replacement dict plus a patch (see [Merge references](#merge-references-a-base-object-plus-a-patch)).
 
 Matches are found scanning left to right. Where replacement substrings overlap - for example `"quick"` and `"quick brown fox"` - the longest match wins, regardless of the order of the `replacements` dictionary, so output is deterministic for equivalent inputs.
 
@@ -76,7 +80,7 @@ print(condensed_output)
 *   **`obj`**: The condensed JSON value.
 *   **`replacements`**: The same `replacements` mapping used for condensing.
 
-This function reverses the `condense_json` operation. It finds the  `{"$": replacement_id}` and `{"$r": [ ...segments...]}` structures and replaces them with the original strings from the `replacements` dictionary.
+This function reverses the `condense_json` operation. It finds the reference forms listed above and substitutes the original content from the `replacements` mapping: strings for string references, deep copies for dict and list references, and base-plus-patch reconstruction for merge references.
 
 **Example:**
 
@@ -95,7 +99,7 @@ assert uncondensed == original
 ```
 If the input `obj` to `uncondense_json` doesn't contain any condensed structures, it returns the input unchanged.
 
-`uncondense_json` is strict: it raises `condense_json.UncondenseError` (a subclass of `ValueError`) if the condensed input is malformed rather than silently producing corrupted output. This covers markers referencing a replacement ID that is missing from `replacements` (or one with an empty value, which `condense_json` never emits markers for), a `$r` value that is not a list, `$r` segments that are not strings or `{"$": id}` dictionaries, and `$r` segments referencing a dict or list replacement - a reference inside a string must resolve to a string.
+`uncondense_json` is strict: it raises `condense_json.UncondenseError` (a subclass of `ValueError`) if the condensed input is malformed rather than silently producing corrupted output. This covers markers referencing a replacement ID that is missing from `replacements` (or one with an empty value, which `condense_json` never emits markers for), a `$r` value that is not a list, `$r` segments that are not strings or `{"$": id}` dictionaries, `$r` segments referencing a dict or list replacement - a reference inside a string must resolve to a string - and malformed [merge references](#merge-references-a-base-object-plus-a-patch).
 
 ```python
 from condense_json import uncondense_json, UncondenseError
