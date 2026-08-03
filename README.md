@@ -142,6 +142,44 @@ The rules:
 - **Round-trips are structural, not byte-identical.** `uncondense_json(condense_json(obj, r), r) == obj` always holds, but a matched subtree comes back with the *replacement's* key order, since the original ordering is not recorded. If you re-serialize the result, bytes may differ even though the value is equal.
 - **Non-string scalars never participate.** A replacement of `42` or `True` is ignored rather than riddling the output with markers, as are empty dicts and lists.
 
+### Merge references: a base object plus a patch
+
+Dict replacement values also act as **merge bases**. A dict in the input that is *mostly* equal to a base - some keys added, changed or missing - can be stored as a reference to the base plus a patch, using a dict-valued `$` marker:
+
+```json
+{"$": {"m": "base_id", "u": {"added or changed": "keys"}, "d": ["keys the input lacks"]}}
+```
+
+`m` names the base entry in `replacements`, `u` holds keys to apply on top of it, and `d` lists base keys to remove first. Uncondensing deep-copies the base, deletes the `d` keys, then applies the `u` entries - which are themselves uncondensed, so they may contain markers of their own. This suits data with a large static envelope and a few varying fields, such as API response metadata:
+
+```python
+from condense_json import condense_json, uncondense_json
+
+env = {
+    "object": "response",
+    "status": "completed",
+    "service_tier": "default",
+    "truncation": "disabled",
+    "store": False,
+    "tools": [],
+}
+response = dict(env, id="resp_123", usage={"total_tokens": 27})
+condensed = condense_json(response, {"env": env})
+# {'$': {'m': 'env', 'u': {'id': 'resp_123', 'usage': {'total_tokens': 27}}}}
+assert uncondense_json(condensed, {"env": env}) == response
+```
+
+How condensing decides:
+
+- **A byte-cost comparison, not a similarity heuristic.** For each base, the patch is computed and both encodings are measured; the merge reference is emitted only when it is smaller than writing the dict out. An unrelated base produces a patch bigger than the dict itself, so it prices itself out. Among competing bases the smallest encoding wins, with ties going to the earlier entry in the mapping.
+- **An exact match takes priority.** A dict equal to a base condenses to the plain `{"$": id}` form, never a merge reference.
+- **Per-key equality is canonical**, like structural matching - key order inside values never matters, and `True`/`1`/`1.0` are always distinct.
+- **Deletion is the explicit `d` list, never a `null` sentinel** (as in JSON Merge Patch), because `null` is a legitimate value in real payloads.
+- **Patches are flat.** If a nested value differs from the base's version at all, the whole value travels in `u` - though it is condensed recursively on the way, so a nested dict may itself become a reference or merge against another base.
+- The structural caveats apply here too: resolution substitutes independent deep copies, and round-trips are structurally equal rather than byte-identical.
+
+`uncondense_json` validates merge references strictly: an unknown or non-dict base, unexpected fields, a non-list `d`, deletion of a key the base does not have, or a non-dict `u` all raise `UncondenseError`.
+
 ### Escaping of `$`, `$r` and `$raw` keys
 
 The condensed format gives special meaning to single-key dictionaries with a `$` or `$r` key. If your input data already contains dictionaries of that shape - for example `{"price": {"$": "100"}}` - they could be misinterpreted when uncondensing.
