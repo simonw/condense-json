@@ -24,7 +24,7 @@ CI = "https://github.com/simonw/condense-json/actions"
 
 
 [dependency-groups]
-dev = ["pytest", "mypy"]
+dev = ["pytest", "mypy", "hypothesis"]
 
 [tool.mypy]
 python_version = "3.10"
